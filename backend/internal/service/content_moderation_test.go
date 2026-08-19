@@ -419,8 +419,8 @@ func TestBuildContentModerationLog_RedactsInputExcerpt(t *testing.T) {
 	require.Contains(t, log.InputExcerpt, "[已脱敏]")
 }
 
-func TestBuildContentModerationLog_UsesCompanyExcerptLimit(t *testing.T) {
-	require.Equal(t, 2000, maxModerationExcerptRunes)
+func TestBuildContentModerationLog_UsesExcerptLimit(t *testing.T) {
+	require.Equal(t, 12000, maxModerationExcerptRunes)
 
 	svc := &ContentModerationService{}
 	cfg := defaultContentModerationConfig()
@@ -448,13 +448,13 @@ func TestRedactContentModerationSecrets_LongHexAndTokens(t *testing.T) {
 	require.Contains(t, out, "[已脱敏]")
 }
 
-func TestContentModerationConfigNormalize_NonHitRetentionMaxThreeDays(t *testing.T) {
+func TestContentModerationConfigNormalize_NonHitRetentionMaxSevenDays(t *testing.T) {
 	cfg := defaultContentModerationConfig()
 	cfg.NonHitRetentionDays = 30
 
 	cfg.normalize()
 
-	require.Equal(t, 3, cfg.NonHitRetentionDays)
+	require.Equal(t, 7, cfg.NonHitRetentionDays)
 }
 
 func TestNormalizeBlockedKeywords_TrimsDedupesAndCaps(t *testing.T) {

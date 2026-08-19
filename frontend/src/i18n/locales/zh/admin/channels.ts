@@ -336,7 +336,7 @@ export default {
       banThreshold: '封禁触发次数',
       violationWindowHours: '累计窗口（小时）',
       hitRetentionDays: '命中记录保留（天）',
-      nonHitRetentionDays: '未命中记录保留（天，最多 3 天）',
+      nonHitRetentionDays: '未命中记录保留（天，最多 7 天）',
       violationCount: '{count} 次',
       emailSent: '已发邮件',
       emailNotSent: '未发邮件',
