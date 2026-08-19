@@ -419,6 +419,23 @@ func TestBuildContentModerationLog_RedactsInputExcerpt(t *testing.T) {
 	require.Contains(t, log.InputExcerpt, "[已脱敏]")
 }
 
+func TestBuildContentModerationLog_UsesCompanyExcerptLimit(t *testing.T) {
+	require.Equal(t, 2000, maxModerationExcerptRunes)
+
+	svc := &ContentModerationService{}
+	cfg := defaultContentModerationConfig()
+	input := ContentModerationCheckInput{
+		RequestID: "req-company-excerpt-limit",
+		Endpoint:  "/v1/chat/completions",
+		Provider:  "openai",
+	}
+	text := strings.Repeat("测", maxModerationExcerptRunes+1)
+
+	log := svc.buildLog(input, cfg, ContentModerationActionAllow, false, "", 0, nil, text, nil, nil, "")
+
+	require.Len(t, []rune(log.InputExcerpt), maxModerationExcerptRunes)
+}
+
 func TestRedactContentModerationSecrets_LongHexAndTokens(t *testing.T) {
 	input := "你哈市多大事cf5bbdc4cd508f3aaf0d2070d529d4a4ac29099f8ecc357f696df28e1df91554 token=abc123456789xyz Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.signaturepart https://example.com/private/path?token=abc123"
 
