@@ -5,7 +5,7 @@
 - Upstream: `v0.1.183@e8cb019fabf8b55199436229044cbf9aa7a82564`
 - Previous company release: `company-v0.1.178-rc.1@d62e45fa3aca7fbfe4a765f6f99d0a46aaf2eded`
 - Upgrade branch: `codex/upgrade-v0.1.183-company`
-- Company behavior implementation: `d088db96657f9ee2bd57807cb71c09ba51315735`
+- Company behavior implementation: `d088db96657f9ee2bd57807cb71c09ba51315735`, with audit-boundary correction `14856bf408d4f788a3366b7a0bed215dca5b68d0`
 - Requested by the company operator on 2026-08-26 with the instruction to upgrade the company Sub2API instance to the latest release. The operating rule requires preserving current company behavior unless its removal is explicitly approved; no removal was approved.
 
 ## Previous image provenance
@@ -22,15 +22,18 @@ The running production image before this upgrade is `sub2api-company:0.1.178-rc.
 | Old commit | Final behavior | Files and dependencies | Disposition | Target evidence and contract |
 | --- | --- | --- | --- | --- |
 | `4ed00b459` | Increased the persisted moderation excerpt from 240 to 2000 runes. | `backend/internal/service/content_moderation.go` and its tests; depends on existing secret redaction before truncation. | Superseded. Do not replay the intermediate value because `d62e45fa3` replaced it with the final 12000-rune behavior. | The complete old-tag diff proves the later commit overrides this value. |
-| `d62e45fa3` | Persist up to 12000 redacted runes and allow non-hit retention to be configured up to 7 days while keeping the default at 3 days. | Six files: the moderation service and tests, Risk Control view and tests, plus Chinese and English labels. The existing database field is `TEXT`; no migration is required. Existing redaction remains before persistence. | Preserve. Reapplied as one focused implementation commit on `v0.1.183`. | Upstream `v0.1.183` still has excerpt `240` and maximum non-hit retention `3`, so upstream does not replace the company contract. Tests assert rune-safe truncation, redaction, seven-day normalization, UI max/load/save behavior, and unchanged defaults. |
+| `d62e45fa3` | Persist up to 12000 redacted runes and allow non-hit retention to be configured up to 7 days while keeping the default at 3 days. | Six files: the moderation service and tests, Risk Control view and tests, plus Chinese and English labels. The existing database field is `TEXT`; no migration is required. The old implementation truncated moderation input before building the log excerpt and reused the excerpt limit for `cyber_policy` errors. | Preserve the company contract, but correct the old implementation: derive the log excerpt from the complete normalized text before truncating input for the moderation API, and retain the independent `cyber_policy` error limit of 960 runes. | Upstream `v0.1.183` still has excerpt `240` and maximum non-hit retention `3`, so upstream does not replace the company contract. Tests cover a secret crossing the 12000-rune boundary through `Check` and async persistence, the independent 960-rune error limit, seven-day normalization, UI max/load/save behavior, and the unchanged three-day default. |
 
 No other file differs between `v0.1.178` and `company-v0.1.178-rc.1`. The new company branch differs from `v0.1.183` only in the same six files plus this ledger.
 
 ## Verification
 
-- Backend focused tests, Go 1.27.0 container: `go test ./internal/service -run "Test(BuildContentModerationLog_(RedactsInputExcerpt|UsesExcerptLimit)|ContentModerationConfigNormalize_NonHitRetentionMaxSevenDays|RedactContentModerationSecrets_LongHexAndTokens)$"` — passed.
+- Backend focused tests, Go 1.27.0 container: `go test ./internal/service -run "Test(BuildContentModerationLog_(RedactsInputExcerpt|UsesExcerptLimit)|ContentModerationConfigNormalize_(NonHitRetentionMaxSevenDays|NonHitRetentionKeepsDefaultThreeDays)|ContentModerationRecordCyberPolicyEvent_KeepsIndependentErrorLimit|ContentModerationCheck_RedactsSecretCrossingInputLimitBeforeAsyncLog|RedactContentModerationSecrets_LongHexAndTokens)$"` — passed.
+- Backend service package, Go 1.27.0 container: `go test ./internal/service` — passed.
 - Migration tests, Go 1.27.0 container: `go test ./migrations ./internal/repository` — passed.
-- Frontend full suite: `pnpm test:run` — 244 files and 1746 tests passed, including all 5 `RiskControlView.spec.ts` tests.
+- PostgreSQL integration migrations, Go 1.27.0 container: `go test -tags integration ./internal/repository -run 'TestMigrationsRunner_(ConcurrentInstancesSerializeOnSessionLock|IsIdempotent_AndSchemaIsUpToDate)'` — passed against a temporary PostgreSQL 18.1 container.
+- Frontend full suite before the audit-boundary follow-up: `pnpm test:run` — 244 files and 1746 tests passed, including the then-current 5 `RiskControlView.spec.ts` tests.
+- Updated Risk Control view tests: `pnpm exec vitest run src/views/admin/__tests__/RiskControlView.spec.ts` — 6 of 6 passed.
 - Frontend type check: `pnpm typecheck` — passed with no errors.
 - `git diff --check` — passed.
 
