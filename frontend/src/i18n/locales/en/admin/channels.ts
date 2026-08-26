@@ -357,7 +357,7 @@ export default {
       banThreshold: 'Ban Threshold',
       violationWindowHours: 'Count Window (hours)',
       hitRetentionDays: 'Hit Record Retention (days)',
-      nonHitRetentionDays: 'Non-Hit Record Retention (days, max 3)',
+      nonHitRetentionDays: 'Non-Hit Record Retention (days, max 7)',
       violationCount: '{count} hits',
       emailSent: 'Email sent',
       emailNotSent: 'No email',
