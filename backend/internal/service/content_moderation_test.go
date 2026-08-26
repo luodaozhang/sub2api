@@ -457,6 +457,45 @@ func TestContentModerationConfigNormalize_NonHitRetentionMaxSevenDays(t *testing
 	require.Equal(t, 7, cfg.NonHitRetentionDays)
 }
 
+func TestContentModerationConfigNormalize_NonHitRetentionKeepsDefaultThreeDays(t *testing.T) {
+	cfg := defaultContentModerationConfig()
+	require.Equal(t, 3, cfg.NonHitRetentionDays)
+
+	cfg.normalize()
+
+	require.Equal(t, 3, cfg.NonHitRetentionDays)
+}
+
+func TestContentModerationRecordCyberPolicyEvent_KeepsIndependentErrorLimit(t *testing.T) {
+	cfg := defaultContentModerationConfig()
+	rawCfg, err := json.Marshal(cfg)
+	require.NoError(t, err)
+
+	repo := &contentModerationTestRepo{}
+	svc := NewContentModerationService(
+		&contentModerationTestSettingRepo{values: map[string]string{
+			SettingKeyRiskControlEnabled:      "true",
+			SettingKeyContentModerationConfig: string(rawCfg),
+		}},
+		repo,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+	)
+
+	svc.RecordCyberPolicyEvent(context.Background(), CyberPolicyRecordInput{
+		UpstreamMessage: strings.Repeat("错", maxContentModerationErrorRunes+1),
+	})
+
+	logs := requireContentModerationLogCount(t, repo, 1)
+	require.Equal(t, ContentModerationActionCyberPolicy, logs[0].Action)
+	require.Len(t, []rune(logs[0].Error), maxContentModerationErrorRunes)
+	require.Equal(t, 960, maxContentModerationErrorRunes)
+}
+
 func TestNormalizeBlockedKeywords_TrimsDedupesAndCaps(t *testing.T) {
 	out := normalizeBlockedKeywords([]string{"  foo ", "FOO", "", "bar", "baz", "bar"})
 	require.Equal(t, []string{"foo", "bar", "baz"}, out)
@@ -523,6 +562,53 @@ func TestContentModerationCheck_PreBlockKeywordHitSkipsUpstreamCall(t *testing.T
 	require.Equal(t, ContentModerationActionKeywordBlock, logs[0].Action)
 	require.Equal(t, contentModerationKeywordCategory, logs[0].HighestCategory)
 	require.Equal(t, "secret-token", logs[0].MatchedKeyword, "blocked log must record which keyword was hit")
+}
+
+func TestContentModerationCheck_RedactsSecretCrossingInputLimitBeforeAsyncLog(t *testing.T) {
+	cfg := defaultContentModerationConfig()
+	cfg.Enabled = true
+	cfg.Mode = ContentModerationModePreBlock
+	cfg.BlockedKeywords = []string{"secret-token"}
+	rawCfg, err := json.Marshal(cfg)
+	require.NoError(t, err)
+
+	repo := &contentModerationTestRepo{}
+	svc := NewContentModerationService(
+		&contentModerationTestSettingRepo{values: map[string]string{
+			SettingKeyRiskControlEnabled:      "true",
+			SettingKeyContentModerationConfig: string(rawCfg),
+		}},
+		repo,
+		&contentModerationTestHashCache{},
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+	)
+
+	const keywordPrefix = "secret-token "
+	secret := "sk-" + strings.Repeat("A", 24)
+	prompt := keywordPrefix + strings.Repeat("测", maxModerationInputRunes-len([]rune(keywordPrefix))-5) + secret
+	body, err := json.Marshal(map[string]any{
+		"messages": []map[string]any{{"role": "user", "content": prompt}},
+	})
+	require.NoError(t, err)
+
+	decision, err := svc.Check(context.Background(), ContentModerationCheckInput{
+		Endpoint: "/v1/messages",
+		Provider: "anthropic",
+		Protocol: ContentModerationProtocolAnthropicMessages,
+		Body:     body,
+	})
+
+	require.NoError(t, err)
+	require.True(t, decision.Blocked)
+	logs := requireContentModerationLogCount(t, repo, 1)
+	require.Len(t, []rune(logs[0].InputExcerpt), maxModerationExcerptRunes)
+	require.Contains(t, logs[0].InputExcerpt, "[已脱敏]")
+	require.NotContains(t, logs[0].InputExcerpt, "sk-AA")
+	require.NotContains(t, logs[0].InputExcerpt, secret)
 }
 
 func TestContentModerationCheck_KeywordsIgnoredInObserveMode(t *testing.T) {

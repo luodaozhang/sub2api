@@ -64,6 +64,7 @@ const (
 	maxContentModerationTimeoutMS     = 30000
 	maxModerationInputRunes           = 12000
 	maxModerationExcerptRunes         = 12000
+	maxContentModerationErrorRunes    = 960
 
 	defaultContentModerationWorkerCount          = 4
 	maxContentModerationWorkerCount              = 32
@@ -333,13 +334,17 @@ type ContentModerationCheckInput struct {
 }
 
 type ContentModerationInput struct {
-	Text   string
-	Images []string
+	Text       string
+	Images     []string
+	LogExcerpt string
 }
 
 func (in *ContentModerationInput) Normalize() {
 	if in == nil {
 		return
+	}
+	if in.LogExcerpt == "" {
+		in.LogExcerpt = contentModerationLogExcerpt(in.Text)
 	}
 	in.Text = trimRunes(normalizeContentModerationText(in.Text), maxModerationInputRunes)
 	in.Images = normalizeModerationImages(in.Images)
@@ -368,7 +373,15 @@ func (in ContentModerationInput) ModerationInput() any {
 }
 
 func (in ContentModerationInput) ExcerptText() string {
-	return in.Text
+	if in.LogExcerpt != "" {
+		return in.LogExcerpt
+	}
+	return contentModerationLogExcerpt(in.Text)
+}
+
+func contentModerationLogExcerpt(text string) string {
+	normalized := normalizeContentModerationText(text)
+	return trimRunes(redactContentModerationSecrets(normalized), maxModerationExcerptRunes)
 }
 
 func (in ContentModerationInput) Hash() string {
@@ -3106,7 +3119,7 @@ func (s *ContentModerationService) RecordCyberPolicyEvent(ctx context.Context, i
 		Flagged:         true,
 		HighestCategory: "cyber_policy",
 		HighestScore:    1.0,
-		Error:           trimRunes(redactContentModerationSecrets(errBody), maxModerationExcerptRunes*4),
+		Error:           trimRunes(redactContentModerationSecrets(errBody), maxContentModerationErrorRunes),
 		CreatedAt:       time.Now(),
 	}
 	// 开关开时 cyber_policy 不参与封号计数：当次不判定（此处跳过），
