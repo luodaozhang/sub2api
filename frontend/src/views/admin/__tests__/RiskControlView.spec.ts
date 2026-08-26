@@ -405,6 +405,45 @@ describe('admin RiskControlView', () => {
     expect(showError).not.toHaveBeenCalled()
   })
 
+  it('allows non-hit records to be retained for up to seven days', async () => {
+    getConfig.mockResolvedValue({
+      ...baseConfig(),
+      non_hit_retention_days: 7,
+    })
+
+    const wrapper = mount(RiskControlView, {
+      global: {
+        stubs: {
+          AppLayout: AppLayoutStub,
+          BaseDialog: BaseDialogStub,
+          Icon: true,
+          Select: true,
+          Toggle: true,
+          Pagination: true,
+          ModelWhitelistSelector: ModelWhitelistSelectorStub,
+          ProxySelector: true,
+        },
+      },
+    })
+
+    await flushPromises()
+
+    await findButtonByText(wrapper, 'admin.riskControl.openSettings').trigger('click')
+    await findButtonByText(wrapper, 'admin.riskControl.tabs.retention').trigger('click')
+    const input = wrapper.get<HTMLInputElement>('[data-test="non-hit-retention-days"]')
+    expect(input.attributes('max')).toBe('7')
+    expect(input.element.value).toBe('7')
+
+    await input.setValue('9')
+    await findButtonByText(wrapper, 'admin.riskControl.saveConfig').trigger('click')
+    await flushPromises()
+
+    expect(updateConfig).toHaveBeenCalledWith(expect.objectContaining({
+      non_hit_retention_days: 7,
+    }))
+    expect(showError).not.toHaveBeenCalled()
+  })
+
   it('describes worker runtime as async audit and pre-block record processing', async () => {
     getStatus.mockResolvedValue({
       ...runtimeStatus(),
