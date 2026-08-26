@@ -63,7 +63,7 @@ const (
 	defaultContentModerationTimeoutMS = 3000
 	maxContentModerationTimeoutMS     = 30000
 	maxModerationInputRunes           = 12000
-	maxModerationExcerptRunes         = 240
+	maxModerationExcerptRunes         = 12000
 
 	defaultContentModerationWorkerCount          = 4
 	maxContentModerationWorkerCount              = 32
@@ -78,7 +78,7 @@ const (
 	defaultContentModerationHitRetentionDays     = 180
 	defaultContentModerationNonHitRetentionDays  = 3
 	maxContentModerationRetentionDays            = 3650
-	maxContentModerationNonHitRetentionDays      = 3
+	maxContentModerationNonHitRetentionDays      = 7
 	contentModerationKeyRateLimitFreezeDuration  = time.Minute
 	contentModerationKeyAuthFreezeDuration       = 10 * time.Minute
 	contentModerationKeyHTTPErrorFreezeDuration  = 10 * time.Second
