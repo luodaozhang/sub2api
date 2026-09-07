@@ -1,4 +1,4 @@
-# company-v0.2.1-rc.1 release ledger
+# company-v0.2.1-rc.2 release ledger
 
 ## Release identity
 
@@ -60,10 +60,10 @@ SELECT
 
 Any nonzero guard blocks app-only rollback. Do not clear or rewrite production data to make a rollback pass.
 
-## Verification plan
+## Verification
 
 - Run backend service tests, migration and repository tests, PostgreSQL integration migration tests, frontend tests, frontend typecheck, and `git diff --check`.
-- Generate `company-v0.2.1-rc.1.tests.tsv` against the fixed candidate commit.
+- Generate `company-v0.2.1-rc.2.tests.tsv` against the fixed candidate commit.
 - Build from the immutable annotated tag with explicit `VERSION=0.2.1-rc.1` and the full commit.
 - Back up Compose, `.env`, application data, Redis RDB, PostgreSQL dump, migrations, and the old image.
 - Rebuild only `sub2api`; preserve the Postgres and Redis container IDs and start times.
