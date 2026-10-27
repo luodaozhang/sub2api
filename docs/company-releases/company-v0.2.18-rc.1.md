@@ -2,7 +2,7 @@
 
 ## Identity and baseline
 
-- Requested on 2026-10-27. Upstream: `v0.2.18@de86961b627e48db75d61fff8c05535d44a00cbe`.
+- Requested on 2026-10-27. Upstream code commit: `v0.2.18@ac1b8f1271be0d674fa6f074403c1410f30a3a81`. Annotated tag object: `de86961b627e48db75d61fff8c05535d44a00cbe`.
 - Branch: `codex/upgrade-v0.2.18-company`; fork: `https://github.com/luodaozhang/sub2api`.
 - Previous company tag: `company-v0.2.15-rc.1@812394afcf398ae7ca3877f67f588e8d0e81ec3c`.
 - Its upstream and the target merge-base are both `v0.2.15@f2669c8cf62555cd92389b3f55920e9e6e7c6ff2`.
